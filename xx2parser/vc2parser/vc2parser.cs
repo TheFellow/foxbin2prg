@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using System.IO;
+
 using xx2lib;
 
 namespace vc2parser
@@ -12,6 +14,10 @@ namespace vc2parser
     {
         public override bool Execute(string sourceFile, string outputFile)
         {
+            if (!File.Exists(sourceFile)) return false;
+
+
+
             return false;
         }
     }
