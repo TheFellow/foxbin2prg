@@ -9,13 +9,14 @@ namespace xx2lib
 {
     public class MergeProxy
     {
+        private string debugFile = @"c:\temp\debug.txt";
         private string flagFile;
-        Func<string, string, bool> parse;
+        Func<xx2parser> parser;
 
-        public MergeProxy(string flagFile, Func<string, string, bool> parse)
+        public MergeProxy(string flagFile, Func<xx2parser> parser)
         {
             this.flagFile = flagFile;
-            this.parse = parse;
+            this.parser = parser;
         }
 
         public void Execute()
@@ -26,17 +27,26 @@ namespace xx2lib
             // Stay in a loop and delegate to events
             string line;
 
+            //File.WriteAllText(debugFile, "Enter Execute()");
+
             while((line = Console.In.ReadLine()) != "end" && !string.IsNullOrEmpty(line))
             {
+                //File.AppendAllText(debugFile, "\nBegin Loop");
+
                 string sourceFile = line;
                 string outputFile = Console.In.ReadLine();
                 bool success = true;
 
+                //File.AppendAllText(debugFile, " source: " + sourceFile);
+                //File.AppendAllText(debugFile, " target: " + outputFile);
+
                 // Invoke the delegate
-                success = parse(sourceFile, outputFile);
+                success = parser().Execute(sourceFile, outputFile);
 
                 if (success)
                     success = File.Exists(outputFile);
+
+                //File.AppendAllText(debugFile, $"\n success = {success}");
 
                 // Respond to the merge tool
                 if (success)
@@ -48,6 +58,8 @@ namespace xx2lib
                     Console.Out.WriteLine("KO");
                     break;
                 }
+
+                //File.AppendAllText(debugFile, "\nEnd Loop");
             }
         }
     }

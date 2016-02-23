@@ -17,12 +17,15 @@ namespace vc2parser
                 return;
 
             // Create a vc2parser and a proxy, and link them up
-            var vc2 = new vc2parser();
-            vc2.Execute(args[1], @"c:\temp\outfile.json");
-            //var pxy = new MergeProxy(args[1], vc2.Execute);
+            Func<vc2parser> parser = (() => new vc2parser());
+
+            //parser().Execute(args[1], @"c:\temp\outfile.json");
+            //return;
+            
+            var pxy = new MergeProxy(args[1], parser);
 
             // Start the proxy
-            //pxy.Execute();
+            pxy.Execute();
         }
     }
 }

@@ -61,6 +61,8 @@ namespace xx2lib
             StringWriter sw = new StringWriter();
             JsonTextWriter json = new JsonTextWriter(sw);
 
+            json.Formatting = Formatting.Indented;
+
             // Begin writing the file
             json.WriteStartObject();
 
@@ -128,6 +130,11 @@ namespace xx2lib
     public class xx2file : xx2containerbase
     {
         public bool parsingErrorsDetected = false;
+
+        public xx2file()
+        {
+            type = "file";
+        }
     }
 
     public class xx2container : xx2containerbase
