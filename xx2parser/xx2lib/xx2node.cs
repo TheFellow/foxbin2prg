@@ -23,6 +23,39 @@ namespace xx2lib
         public Span footerSpan = new Span { begin = 0, end = -1 };
         public List<xx2node> children = new List<xx2node>();
 
+        public xx2leaf AddLeaf(string type, string name, LocationSpan locationSpan, Span span)
+        {
+            var leaf = new xx2leaf()
+            {
+                type = type,
+                name = name,
+                locationSpan = locationSpan,
+                span = span
+            };
+
+            children.Add(leaf);
+            return leaf;
+        }
+
+        public xx2container AddChild(string type, string name, LocationSpan locationSpan, Span? headerSpan = null, Span? footerSpan = null)
+        {
+            var child = new xx2container()
+            {
+                type = type,
+                name = name,
+                locationSpan = locationSpan
+            };
+
+            if (headerSpan.HasValue)
+                child.headerSpan = headerSpan.Value;
+
+            if (footerSpan.HasValue)
+                child.footerSpan = footerSpan.Value;
+
+            children.Add(child);
+            return child;
+        }
+
         public void Serialize(string outputFile)
         {
             StringWriter sw = new StringWriter();
@@ -33,7 +66,17 @@ namespace xx2lib
 
             json.WriteEntry("type", type);
             json.WriteEntry("name", name);
+            json.WriteLocationSpan(locationSpan);
+            json.WriteRange("footerSpan", footerSpan.begin, footerSpan.end);
+            json.WriteEntry("parsingErrorsDetected", false);
 
+            if(children.Count > 0)
+            {
+                json.WritePropertyName("children");
+                json.WriteStartArray();
+                SerializeChildren(children, json);
+                json.WriteEndArray();
+            }
 
             json.WriteEndObject();
             
@@ -41,9 +84,44 @@ namespace xx2lib
             File.WriteAllText(outputFile, sw.ToString());
         }
 
-        private void SerializeChildren(xx2containerbase chidlren, JObject json)
+        private void SerializeChildren(List<xx2node> children, JsonTextWriter json)
         {
+            foreach(var child in children)
+            {
+                if(child is xx2leaf)
+                {
+                    // Serialize a leaf node
+                    var leaf = child as xx2leaf;
+                    json.WriteStartObject();
 
+                    json.WriteEntry("type", leaf.type);
+                    json.WriteEntry("name", leaf.name);
+                    json.WriteLocationSpan(leaf.locationSpan);
+                    json.WriteRange("span", leaf.span.begin, leaf.span.end);
+
+                    json.WriteEndObject();
+                }
+                else // child is xx2container
+                {
+                    // Serialize a container
+                    var ctr = child as xx2container;
+
+                    json.WriteStartObject();
+
+                    json.WriteEntry("type", ctr.type);
+                    json.WriteEntry("name", ctr.name);
+                    json.WriteLocationSpan(ctr.locationSpan);
+                    json.WriteRange("headerSpan", ctr.headerSpan.begin, ctr.headerSpan.end);
+                    json.WriteRange("footerSpan", ctr.footerSpan.begin, ctr.footerSpan.end);
+
+                    json.WritePropertyName("children");
+                    json.WriteStartArray();
+                    SerializeChildren(ctr.children, json);
+                    json.WriteEndArray();
+
+                    json.WriteEndObject();
+                }
+            }
         }
     }
 
@@ -59,6 +137,6 @@ namespace xx2lib
 
     public class xx2leaf : xx2node
     {
-
+        public Span span;
     }
 }

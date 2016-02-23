@@ -21,6 +21,12 @@ namespace xx2lib
             json.WriteValue(value);
         }
 
+        public static void WriteEntry(this JsonTextWriter json, string property, bool value)
+        {
+            json.WritePropertyName(property);
+            json.WriteValue(value);
+        }
+
         public static void WriteRange(this JsonTextWriter json, string name, int low, int high)
         {
             json.WritePropertyName(name);

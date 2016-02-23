@@ -44,7 +44,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="FileLine.cs" />
     <Compile Include="JsonExtensions.cs" />
     <Compile Include="LocationSpan.cs" />
     <Compile Include="MergeProxy.cs" />
