@@ -4,9 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace xx2lib
+namespace vc2parser
 {
-    public class Class1
+    class vc2parser
     {
+        static void Main(string[] args)
+        {
+        }
     }
 }
