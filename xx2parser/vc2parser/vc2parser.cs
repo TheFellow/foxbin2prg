@@ -27,6 +27,7 @@ namespace vc2parser
         public string line => lines[index];
         public LocationSpan currentLineLocationSpan => new LocationSpan { startRow = index + 1, startCol = 0, endRow = index + 1, endCol = info[index].length };
         public Span currentLineSpan => new Span { begin = info[index].begin, end = info[index].end };
+        public Span currentLineEmptySpan => new Span { begin = info[index].begin, end = info[index].begin - 1 };
 
         int index = 0;
 
@@ -150,7 +151,7 @@ namespace vc2parser
         {
             var meths = ctr.AddChild("Methods", "Method definitions",
                 currentLineLocationSpan,
-                new Span { begin = info[index].begin, end = info[index].begin - 1 });
+                currentLineEmptySpan);
 
             while(line.StartsWith(procDef) || line.StartsWith(hiddenProc) || line.StartsWith(protectedProc))
             {
@@ -184,7 +185,7 @@ namespace vc2parser
         {
             var add = ctr.AddChild("Member objects", "Member objects",
                 currentLineLocationSpan,
-                new Span { begin = info[index].begin, end = info[index].begin - 1 });
+                currentLineEmptySpan);
 
             while (line.StartsWith(addObject))
             {
@@ -220,7 +221,7 @@ namespace vc2parser
 
         private void ParseVC2PropertyValues(xx2container ctr)
         {
-            var props = ctr.AddChild("Properties", "Property values", currentLineLocationSpan, new Span { begin = info[index].begin, end=info[index].begin - 1 });
+            var props = ctr.AddChild("Properties", "Property values", currentLineLocationSpan, currentLineEmptySpan);
 
             // Check for HIDDEN property list
             if (line.StartsWith(hiddenPropList))
