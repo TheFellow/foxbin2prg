@@ -279,7 +279,7 @@ namespace vc2parser
                 {
                     string name = line.Trim().Split()[1];
 
-                    def.AddLeaf("Method", name, currentLineLocationSpan, currentLineSpan);
+                    def.AddLeaf("Method declaration", name, currentLineLocationSpan, currentLineSpan);
                     index++;
                 }
 
@@ -296,7 +296,7 @@ namespace vc2parser
                 {
                     string name = line.Trim().Split()[1];
 
-                    def.AddLeaf("Property", name, currentLineLocationSpan, currentLineSpan);
+                    def.AddLeaf("Property declaration", name, currentLineLocationSpan, currentLineSpan);
                     index++;
                 }
 
@@ -313,7 +313,7 @@ namespace vc2parser
                 {
                     string name = line.Trim().Split()[1];
 
-                    def.AddLeaf("Array", name, currentLineLocationSpan, currentLineSpan);
+                    def.AddLeaf("Array declaration", name, currentLineLocationSpan, currentLineSpan);
                     index++;
                 }
 
