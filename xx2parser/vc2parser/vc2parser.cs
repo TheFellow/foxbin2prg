@@ -29,7 +29,7 @@ namespace vc2parser
         public Span currentLineSpan => new Span { begin = info[index].begin, end = info[index].end };
         public Span currentLineEmptySpan => new Span { begin = info[index].begin, end = info[index].begin - 1 };
 
-        int index = 0;
+        private int index = 0;
 
         #region Constants
 
@@ -53,6 +53,16 @@ namespace vc2parser
         public const string endProc = @"	ENDPROC";
 
         #endregion
+
+        internal static string DotSplit(this string s, int index)
+        {
+            string[] parts = s.Split('.');
+
+            if (index >= parts.Length - 1)
+                return string.Empty;
+
+            return parts[index];
+        }
 
         public override bool Execute(string sourceFile, string outputFile)
         {
@@ -321,6 +331,10 @@ namespace vc2parser
             var ctr = vc2.AddChild("Object data", "ZOrder object data", currentLineLocationSpan, currentLineSpan);
             index++;
 
+            // Used for nested containers
+            var names = new Stack<string>();
+            var containers = new Stack<xx2container>();
+
             // Add a leaf for each object data
             while (line.StartsWith(objectData))
             {
@@ -328,7 +342,17 @@ namespace vc2parser
                 int end = line.IndexOf('"', start);
                 string name = line.Substring(start, end - start);
 
-                ctr.AddLeaf("ZOrder", name, currentLineLocationSpan, currentLineSpan);
+                // Not nested
+                // ctr.AddLeaf("ZOrder", name, currentLineLocationSpan, currentLineSpan);
+
+                
+                string[] parts = name.Split('.');
+
+                // Unwrap nested until we're out or found a match
+                while (names.Count > 0 && parts.Length > names.Count) names.Pop();
+                
+                
+
                 index++;
             }
 
