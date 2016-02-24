@@ -270,56 +270,9 @@ namespace vc2parser
             var pems = ctr.AddChild("PEMs", "PEM list", currentLineLocationSpan, currentLineSpan);
             index++;
 
-            // methods
-            if (line.StartsWith(pemMethod))
-            {
-                var def = pems.AddChild("PEM declaration", "Methods", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
-
-                while (line.StartsWith(pemMethod))
-                {
-                    string name = line.Trim().Split()[1];
-
-                    def.AddLeaf("Method declaration", name, currentLineLocationSpan, currentLineSpan);
-                    index++;
-                }
-
-                def.locationSpan.endRow = index;
-                def.locationSpan.endCol = info[index - 1].length;
-            }
-
-            // properties
-            if (line.StartsWith(pemProperty))
-            {
-                var def = pems.AddChild("PEM declaration", "Properties", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
-
-                while (line.StartsWith(pemProperty))
-                {
-                    string name = line.Trim().Split()[1];
-
-                    def.AddLeaf("Property declaration", name, currentLineLocationSpan, currentLineSpan);
-                    index++;
-                }
-
-                def.locationSpan.endRow = index;
-                def.locationSpan.endCol = info[index - 1].length;
-            }
-
-            // arrays
-            if (line.StartsWith(pemArray))
-            {
-                var def = pems.AddChild("PEM declaration", "Arrays", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
-
-                while (line.StartsWith(pemArray))
-                {
-                    string name = line.Trim().Split()[1];
-
-                    def.AddLeaf("Array declaration", name, currentLineLocationSpan, currentLineSpan);
-                    index++;
-                }
-
-                def.locationSpan.endRow = index;
-                def.locationSpan.endCol = info[index - 1].length;
-            }
+            HandlePEM(pems, pemMethod, "Method");
+            HandlePEM(pems, pemProperty, "Property");
+            HandlePEM(pems, pemArray, "Array");
 
             // footer
             int startIndex = index;
@@ -332,6 +285,25 @@ namespace vc2parser
 
             pems.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
 
+        }
+
+        private void HandlePEM(xx2container pems, string startsWith, string typeName)
+        {
+            if (line.StartsWith(startsWith))
+            {
+                var def = pems.AddChild("PEM declaration", $"{typeName}s", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+
+                while (line.StartsWith(startsWith))
+                {
+                    string name = line.Trim().Split()[1];
+
+                    def.AddLeaf($"{typeName} declaration", name, currentLineLocationSpan, currentLineSpan);
+                    index++;
+                }
+
+                def.locationSpan.endRow = index;
+                def.locationSpan.endCol = info[index - 1].length;
+            }
         }
 
         private void ParseVC2ObjectData(xx2container vc2)
