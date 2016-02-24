@@ -13,6 +13,8 @@ namespace vc2parser
     struct lineinfo
     {
         public int begin, end, length;
+
+        public override string ToString() => $"begin: {begin} end: {end} length: {length}";
     }
 
     class vc2parser : xx2parser
@@ -36,6 +38,12 @@ namespace vc2parser
         public const string objectDataHeader = @"	*-- OBJECTDATA ";
         public const string objectData = @"	*< OBJECTDATA: ";
         public const string addObject = @"	ADD OBJECT";
+        public const string definedPropArrayMethod = @"	*<DefinedPropArrayMethod>";
+        public const string pemMethod = @"		*m: ";
+        public const string pemProperty = @"		*p: ";
+        public const string pemArray = @"		*a: ";
+        public const string hiddenPropList = @"	HIDDEN ";
+        public const string protectedPropList = @"	PROTECTED ";
 
         #endregion
 
@@ -91,23 +99,187 @@ namespace vc2parser
             return vc2;
         }
 
-        private void ParseVC2ClassLib(xx2file vc2)
+        private void ParseVC2Class(xx2file vc2)
         {
-            while (line.StartsWith(externalClass))
+            int startIndex = index;
+
+            var ctr = vc2.AddChild("class", line.Split()[2], currentLineLocationSpan);
+
+            // Consume the header
+            while (line.Trim() != string.Empty) index++;
+            while (line.Trim() == string.Empty) index++;
+
+            // set container header
+            ctr.headerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
+
+            // Check for Object Data
+            if (line.StartsWith(objectDataHeader)) ParseVC2ObjectData(ctr);
+
+            // Check for Defined Prop Array Method
+            if (line.StartsWith(definedPropArrayMethod)) ParseVC2DefinedPropArrayMethod(ctr);
+
+            // Check for Hidden/protected/property sheet value
+            if (line.StartsWith(hiddenPropList) || line.StartsWith(protectedPropList) || line[line.IndexOf(' ') + 1] == '=') ParseVC2PropertyValues(ctr);
+
+            index++;
+        }
+
+        private void ParseVC2PropertyValues(xx2container ctr)
+        {
+            var props = ctr.AddChild("Properties", "Property values", currentLineLocationSpan, new Span { begin = info[index].begin, end=info[index].begin - 1 });
+
+            // Check for HIDDEN property list
+            if (line.StartsWith(hiddenPropList))
+            {
+                props.AddLeaf("Hidden properties", "Hidden props", currentLineLocationSpan, currentLineSpan);
+                index++;
+            }
+
+            // Check for PROTECTED property list
+            if (line.StartsWith(protectedPropList))
+            {
+                props.AddLeaf("Protected properties", "Protected props", currentLineLocationSpan, currentLineSpan);
+                index++;
+            }
+
+            while(line.Trim() != string.Empty)
+            {
+                string name = line.Substring(0, line.IndexOf(' ')).Trim();
+
+                if(name.ToUpperInvariant() == "_MemberData".ToUpperInvariant())
+                {
+                    int startIndex = index;
+                    while (!line.ToLowerInvariant().Contains(@"</VFPData>".ToLowerInvariant())) index++;
+                    index++; // Consume trailing row
+
+                    props.AddLeaf(
+                        "Property",
+                        name,
+                        new LocationSpan { startRow = startIndex + 1, startCol = 0, endRow = index + 1, endCol = info[index - 1].length },
+                        new Span { begin = info[startIndex].begin, end = info[index - 1].end });
+                }
+                else
+                {
+                    props.AddLeaf(
+                        "Property",
+                        name,
+                        currentLineLocationSpan,
+                        currentLineSpan
+                        );
+                }
+
+                index++;
+            }
+
+            // Wrap up props
+            int footerStartIndex = index;
+            while (line.Trim() == string.Empty) index++;
+
+            props.locationSpan.endRow = index;
+            props.locationSpan.endCol = info[index - 1].length;
+
+            props.footerSpan = new Span { begin = info[footerStartIndex].begin, end = info[index - 1].end };
+        }
+
+        private void ParseVC2DefinedPropArrayMethod(xx2container ctr)
+        {
+            var pems = ctr.AddChild("Defined PEMs", "PEM lsit", currentLineLocationSpan, currentLineSpan);
+            index++;
+
+            // methods
+            if (line.StartsWith(pemMethod))
+            {
+                var def = pems.AddChild("Method declaration", "Method declarations", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+
+                while (line.StartsWith(pemMethod))
+                {
+                    int begin = pemMethod.Length;
+                    int end = line.IndexOf('\t', begin);
+                    string name = end >= begin ? line.Substring(begin, end - begin) : line.Substring(begin).Trim();
+
+                    def.AddLeaf("Method", name, currentLineLocationSpan, currentLineSpan);
+                    index++;
+                }
+
+                def.locationSpan.endRow = index;
+                def.locationSpan.endCol = info[index - 1].length;
+            }
+
+            // properties
+            if (line.StartsWith(pemProperty))
+            {
+                var def = pems.AddChild("Propety declaration", "", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+
+                while (line.StartsWith(pemProperty))
+                {
+                    int begin = pemMethod.Length;
+                    int end = line.IndexOf('\t', begin);
+                    string name = end >= begin ? line.Substring(begin, end) : line.Substring(begin).Trim();
+
+                    def.AddLeaf("Property", name, currentLineLocationSpan, currentLineSpan);
+                    index++;
+                }
+
+                def.locationSpan.endRow = index;
+                def.locationSpan.endCol = info[index - 1].length;
+            }
+
+            // arrays
+            if (line.StartsWith(pemArray))
+            {
+                var def = pems.AddChild("Array declaration", "", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+
+                while (line.StartsWith(pemArray))
+                {
+                    int begin = pemMethod.Length;
+                    int end = line.IndexOf('\t', begin);
+                    string name = end >= begin ? line.Substring(begin, end) : line.Substring(begin).Trim();
+
+                    def.AddLeaf("Array", name, currentLineLocationSpan, currentLineSpan);
+                    index++;
+                }
+
+                def.locationSpan.endRow = index;
+                def.locationSpan.endCol = info[index - 1].length;
+            }
+
+            // footer
+            int startIndex = index;
+            index++;
+
+            while (line.Trim() == string.Empty) index++;
+
+            pems.locationSpan.endRow = index;
+            pems.locationSpan.endCol = info[index - 1].length;
+
+            pems.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
+
+        }
+
+        private void ParseVC2ObjectData(xx2container vc2)
+        {
+            var ctr = vc2.AddChild("Object data", "ZOrder object data", currentLineLocationSpan, currentLineSpan);
+            index++;
+
+            // Add a leaf for each object data
+            while (line.StartsWith(objectData))
             {
                 int start = line.IndexOf('"') + 1;
                 int end = line.IndexOf('"', start);
                 string name = line.Substring(start, end - start);
 
-                vc2.AddLeaf("class", name, currentLineLocationSpan, currentLineSpan);
-
+                ctr.AddLeaf("ZOrder", name, currentLineLocationSpan, currentLineSpan);
                 index++;
             }
-        }
 
-        private void ParseVC2Class(xx2file vc2)
-        {
-            throw new NotImplementedException();
+            int startIndex = index;
+
+            while (line.Trim() == string.Empty) index++;
+
+            ctr.locationSpan.endRow = index - 1;
+            ctr.locationSpan.endCol = info[index - 1].length;
+
+            ctr.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
         }
 
         private void ParseVC2Header(xx2file vc2)
@@ -128,6 +300,20 @@ namespace vc2parser
             }
         }
 
+        private void ParseVC2ClassLib(xx2file vc2)
+        {
+            while (line.StartsWith(externalClass))
+            {
+                int start = line.IndexOf('"') + 1;
+                int end = line.IndexOf('"', start);
+                string name = line.Substring(start, end - start);
+
+                vc2.AddLeaf("class", name, currentLineLocationSpan, currentLineSpan);
+
+                index++;
+            }
+        }
+
         private void LoadFile(string sourceFile)
         {
             lines = File.ReadAllLines(sourceFile);
@@ -135,11 +321,15 @@ namespace vc2parser
 
             int index = 0, offset = 0;
 
+            //var wr = File.CreateText(@"c:\temp\lines.txt");
+
             foreach(string line in lines)
             {
                 info[index].begin = offset;
                 info[index].end = offset + line.Length - 1 + ((index == lastLine) ? 0 : 2); // +2-1 for CRLF and inclusive length
                 info[index].length = line.Length + ((index == lastLine) ? 0 : 2); // CRLF
+
+                //wr.WriteLine($"Line {index:3} {info[index]}");
 
                 offset += info[index].length;
                 index++;

@@ -21,7 +21,7 @@ namespace vc2parser
 
             //parser().Execute(args[1], @"c:\temp\outfile.json");
             //return;
-            
+
             var pxy = new MergeProxy(args[1], parser);
 
             // Start the proxy
