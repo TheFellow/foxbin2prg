@@ -33,6 +33,7 @@ namespace vc2parser
         #region Constants
 
         public const string defineClass = @"DEFINE CLASS ";
+        public const string endDefineClass = @"ENDDEFINE";
         public const string externalClassHeader = @"*-- EXTERNAL_CLASS ";
         public const string externalClass = @"*< EXTERNAL_CLASS: ";
         public const string objectDataHeader = @"	*-- OBJECTDATA ";
@@ -106,7 +107,7 @@ namespace vc2parser
 
         private void ParseVC2Class(xx2file vc2)
         {
-            int startIndex = index;
+            int headerStartIndex = index;
 
             var ctr = vc2.AddChild("class", line.Split()[2], currentLineLocationSpan);
 
@@ -115,7 +116,7 @@ namespace vc2parser
             while (line.Trim() == string.Empty) index++;
 
             // set container header
-            ctr.headerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
+            ctr.headerSpan = new Span { begin = info[headerStartIndex].begin, end = info[index - 1].end };
 
             // Check for Object Data
             if (line.StartsWith(objectDataHeader)) ParseVC2ObjectData(ctr);
@@ -134,7 +135,15 @@ namespace vc2parser
             // Check for procedures
             if (line.StartsWith(procDef) || line.StartsWith(hiddenProc) || line.StartsWith(protectedProc)) ParseVC2Procedures(ctr);
 
-            index++;
+            if (line == endDefineClass)
+            {
+                int startIndex = index++; // Skip the enddefine
+                while (index < length && line.Trim() == string.Empty) index++;
+
+                ctr.locationSpan.endRow = index;
+                ctr.locationSpan.endCol = info[index - 1].length;
+                ctr.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
+            }
         }
 
         private void ParseVC2Procedures(xx2container ctr)
@@ -336,7 +345,7 @@ namespace vc2parser
         {
             while (line.StartsWith("*") && !line.StartsWith(externalClass)) index++;
 
-            vc2.AddLeaf("vc2 header", "file header",
+            vc2.AddLeaf("file header", "file header",
                 new LocationSpan { startRow = 1, startCol = 0, endRow = index, endCol = info[index - 1].length },
                 new Span { begin = 0, end = info[index - 1].end }
                 );
@@ -344,9 +353,9 @@ namespace vc2parser
 
         private void ParseVC2Footer(xx2file vc2)
         {
-            if (index < length - 1)
+            if (index <= length - 1)
             {
-                vc2.footerSpan = new Span { begin = info[index].begin, end = info[lastLine].end };
+                vc2.footerSpan = new Span { begin = info[Math.Min(lastLine, index)].begin, end = info[lastLine].end };
             }
         }
 
