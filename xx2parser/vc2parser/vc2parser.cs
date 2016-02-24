@@ -273,13 +273,11 @@ namespace vc2parser
             // methods
             if (line.StartsWith(pemMethod))
             {
-                var def = pems.AddChild("Method declaration", "Method declarations", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+                var def = pems.AddChild("PEM declaration", "Methods", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
 
                 while (line.StartsWith(pemMethod))
                 {
-                    int begin = pemMethod.Length;
-                    int end = line.IndexOf('\t', begin);
-                    string name = end >= begin ? line.Substring(begin, end - begin) : line.Substring(begin).Trim();
+                    string name = line.Trim().Split()[1];
 
                     def.AddLeaf("Method", name, currentLineLocationSpan, currentLineSpan);
                     index++;
@@ -292,13 +290,11 @@ namespace vc2parser
             // properties
             if (line.StartsWith(pemProperty))
             {
-                var def = pems.AddChild("Propety declaration", "", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+                var def = pems.AddChild("PEM declaration", "Properties", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
 
                 while (line.StartsWith(pemProperty))
                 {
-                    int begin = pemMethod.Length;
-                    int end = line.IndexOf('\t', begin);
-                    string name = end >= begin ? line.Substring(begin, end) : line.Substring(begin).Trim();
+                    string name = line.Trim().Split()[1];
 
                     def.AddLeaf("Property", name, currentLineLocationSpan, currentLineSpan);
                     index++;
@@ -311,13 +307,11 @@ namespace vc2parser
             // arrays
             if (line.StartsWith(pemArray))
             {
-                var def = pems.AddChild("Array declaration", "", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+                var def = pems.AddChild("PEM declaration", "Arrays", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
 
                 while (line.StartsWith(pemArray))
                 {
-                    int begin = pemMethod.Length;
-                    int end = line.IndexOf('\t', begin);
-                    string name = end >= begin ? line.Substring(begin, end) : line.Substring(begin).Trim();
+                    string name = line.Trim().Split()[1];
 
                     def.AddLeaf("Array", name, currentLineLocationSpan, currentLineSpan);
                     index++;
