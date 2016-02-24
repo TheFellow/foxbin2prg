@@ -37,13 +37,18 @@ namespace vc2parser
         public const string externalClass = @"*< EXTERNAL_CLASS: ";
         public const string objectDataHeader = @"	*-- OBJECTDATA ";
         public const string objectData = @"	*< OBJECTDATA: ";
-        public const string addObject = @"	ADD OBJECT";
+        public const string addObject = @"	ADD OBJECT ";
+        public const string endObject = @"		*< END OBJECT: ";
         public const string definedPropArrayMethod = @"	*<DefinedPropArrayMethod>";
         public const string pemMethod = @"		*m: ";
         public const string pemProperty = @"		*p: ";
         public const string pemArray = @"		*a: ";
         public const string hiddenPropList = @"	HIDDEN ";
         public const string protectedPropList = @"	PROTECTED ";
+        public const string protectedProc = @"	PROTECTED PROCEDURE";
+        public const string hiddenProc = @"	HIDDEN PROCEDURE";
+        public const string procDef = @"	PROCEDURE ";
+        public const string endProc = @"	ENDPROC";
 
         #endregion
 
@@ -118,10 +123,90 @@ namespace vc2parser
             // Check for Defined Prop Array Method
             if (line.StartsWith(definedPropArrayMethod)) ParseVC2DefinedPropArrayMethod(ctr);
 
-            // Check for Hidden/protected/property sheet value
-            if (line.StartsWith(hiddenPropList) || line.StartsWith(protectedPropList) || line[line.IndexOf(' ') + 1] == '=') ParseVC2PropertyValues(ctr);
+            // Check for Hidden/Protected/property sheet value
+            if ((line.StartsWith(hiddenPropList) || line.StartsWith(protectedPropList) || line[line.IndexOf(' ') + 1] == '=')
+                    && !(line.StartsWith(hiddenProc) || line.StartsWith(protectedProc)))
+                ParseVC2PropertyValues(ctr);
+
+            // Check for Add Object(s)
+            if (line.StartsWith(addObject)) ParseVC2AddObjects(ctr);
+
+            // Check for procedures
+            if (line.StartsWith(procDef) || line.StartsWith(hiddenProc) || line.StartsWith(protectedProc)) ParseVC2Procedures(ctr);
 
             index++;
+        }
+
+        private void ParseVC2Procedures(xx2container ctr)
+        {
+            var meths = ctr.AddChild("Methods", "Method definitions",
+                currentLineLocationSpan,
+                new Span { begin = info[index].begin, end = info[index].begin - 1 });
+
+            while(line.StartsWith(procDef) || line.StartsWith(hiddenProc) || line.StartsWith(protectedProc))
+            {
+                // Determine the procedure name
+                string procName;
+
+                if (line.StartsWith(procDef))
+                    procName = line.Trim().Split()[1];
+                else
+                    procName = line.Trim().Split()[2];
+
+                int startIndex = index;
+
+                while (!line.StartsWith(endProc)) index++;
+
+                index++; // Skip the ENDPROC line
+                while (line.Trim() == string.Empty) index++;
+
+                meths.AddLeaf("Method", procName,
+                    new LocationSpan { startRow = startIndex + 1, startCol = 0, endRow = index, endCol = info[index - 1].length },
+                    new Span { begin = info[startIndex].begin, end = info[index - 1].end });
+            }
+
+            // Finish meths.
+            // Note: No footer
+            meths.locationSpan.endRow = index;
+            meths.locationSpan.endCol = info[index - 1].length;
+        }
+
+        private void ParseVC2AddObjects(xx2container ctr)
+        {
+            var add = ctr.AddChild("Member objects", "Member objects",
+                currentLineLocationSpan,
+                new Span { begin = info[index].begin, end = info[index].begin - 1 });
+
+            while (line.StartsWith(addObject))
+            {
+                int begin = line.IndexOf('\'') + 1;
+                int end = line.IndexOf('\'', begin);
+                string name = line.Substring(begin, end - begin);
+
+                var ctrl = add.AddChild("Member", name, currentLineLocationSpan, currentLineSpan);
+                index++; // Skip header
+
+                while (!line.StartsWith(endObject))
+                {
+                    string propName = line.Substring(0, line.IndexOf('=')).Trim();
+                    ctrl.AddLeaf("Property", propName, currentLineLocationSpan, currentLineSpan);
+                    index++;
+                }
+
+                int startIndex = index;
+                index++;
+                while (line.Trim() == string.Empty) index++;
+
+                ctrl.locationSpan.endRow = index;
+                ctrl.locationSpan.endCol = info[index - 1].length;
+
+                ctrl.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
+            }
+
+            // Finish add info
+            // Note: No footer span
+            add.locationSpan.endRow = index;
+            add.locationSpan.endCol = info[index - 1].length;
         }
 
         private void ParseVC2PropertyValues(xx2container ctr)
@@ -131,14 +216,14 @@ namespace vc2parser
             // Check for HIDDEN property list
             if (line.StartsWith(hiddenPropList))
             {
-                props.AddLeaf("Hidden properties", "Hidden props", currentLineLocationSpan, currentLineSpan);
+                props.AddLeaf("Hidden", "Property list", currentLineLocationSpan, currentLineSpan);
                 index++;
             }
 
             // Check for PROTECTED property list
             if (line.StartsWith(protectedPropList))
             {
-                props.AddLeaf("Protected properties", "Protected props", currentLineLocationSpan, currentLineSpan);
+                props.AddLeaf("Protected", "Property list", currentLineLocationSpan, currentLineSpan);
                 index++;
             }
 
@@ -150,7 +235,6 @@ namespace vc2parser
                 {
                     int startIndex = index;
                     while (!line.ToLowerInvariant().Contains(@"</VFPData>".ToLowerInvariant())) index++;
-                    index++; // Consume trailing row
 
                     props.AddLeaf(
                         "Property",
@@ -183,7 +267,7 @@ namespace vc2parser
 
         private void ParseVC2DefinedPropArrayMethod(xx2container ctr)
         {
-            var pems = ctr.AddChild("Defined PEMs", "PEM lsit", currentLineLocationSpan, currentLineSpan);
+            var pems = ctr.AddChild("PEMs", "PEM list", currentLineLocationSpan, currentLineSpan);
             index++;
 
             // methods
