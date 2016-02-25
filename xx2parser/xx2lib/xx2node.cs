@@ -116,10 +116,13 @@ namespace xx2lib
                     json.WriteRange("headerSpan", ctr.headerSpan.begin, ctr.headerSpan.end);
                     json.WriteRange("footerSpan", ctr.footerSpan.begin, ctr.footerSpan.end);
 
-                    json.WritePropertyName("children");
-                    json.WriteStartArray();
-                    SerializeChildren(ctr.children, json);
-                    json.WriteEndArray();
+                    if(children.Count > 0)
+                    {
+                        json.WritePropertyName("children");
+                        json.WriteStartArray();
+                        SerializeChildren(ctr.children, json);
+                        json.WriteEndArray();
+                    }
 
                     json.WriteEndObject();
                 }

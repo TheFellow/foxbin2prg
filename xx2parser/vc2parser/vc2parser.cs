@@ -33,36 +33,26 @@ namespace vc2parser
 
         #region Constants
 
-        public const string defineClass = @"DEFINE CLASS ";
-        public const string endDefineClass = @"ENDDEFINE";
-        public const string externalClassHeader = @"*-- EXTERNAL_CLASS ";
-        public const string externalClass = @"*< EXTERNAL_CLASS: ";
-        public const string objectDataHeader = @"	*-- OBJECTDATA ";
-        public const string objectData = @"	*< OBJECTDATA: ";
-        public const string addObject = @"	ADD OBJECT ";
-        public const string endObject = @"		*< END OBJECT: ";
-        public const string definedPropArrayMethod = @"	*<DefinedPropArrayMethod>";
-        public const string pemMethod = @"		*m: ";
-        public const string pemProperty = @"		*p: ";
-        public const string pemArray = @"		*a: ";
-        public const string hiddenPropList = @"	HIDDEN ";
-        public const string protectedPropList = @"	PROTECTED ";
-        public const string protectedProc = @"	PROTECTED PROCEDURE";
-        public const string hiddenProc = @"	HIDDEN PROCEDURE";
-        public const string procDef = @"	PROCEDURE ";
-        public const string endProc = @"	ENDPROC";
+        public const string defineClass =           @"DEFINE CLASS ";
+        public const string endDefineClass =        @"ENDDEFINE";
+        public const string externalClassHeader =   @"*-- EXTERNAL_CLASS ";
+        public const string externalClass =         @"*< EXTERNAL_CLASS: ";
+        public const string objectDataHeader =      @"	*-- OBJECTDATA ";
+        public const string objectData =            @"	*< OBJECTDATA: ObjPath=""";
+        public const string addObject =             @"	ADD OBJECT ";
+        public const string endObject =             @"		*< END OBJECT: ";
+        public const string definedPropArrayMethod =@"	*<DefinedPropArrayMethod>";
+        public const string pemMethod =             @"		*m: ";
+        public const string pemProperty =           @"		*p: ";
+        public const string pemArray =              @"		*a: ";
+        public const string hiddenPropList =        @"	HIDDEN ";
+        public const string protectedPropList =     @"	PROTECTED ";
+        public const string protectedProc =         @"	PROTECTED PROCEDURE";
+        public const string hiddenProc =            @"	HIDDEN PROCEDURE";
+        public const string procDef =               @"	PROCEDURE ";
+        public const string endProc =               @"	ENDPROC";
 
         #endregion
-
-        internal static string DotSplit(this string s, int index)
-        {
-            string[] parts = s.Split('.');
-
-            if (index >= parts.Length - 1)
-                return string.Empty;
-
-            return parts[index];
-        }
 
         public override bool Execute(string sourceFile, string outputFile)
         {
@@ -311,7 +301,7 @@ namespace vc2parser
         {
             if (line.StartsWith(startsWith))
             {
-                var def = pems.AddChild("PEM declaration", $"{typeName}s", currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+                var def = pems.AddChild("PEM declaration", typeName, currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
 
                 while (line.StartsWith(startsWith))
                 {
@@ -328,12 +318,12 @@ namespace vc2parser
 
         private void ParseVC2ObjectData(xx2container vc2)
         {
-            var ctr = vc2.AddChild("Object data", "ZOrder object data", currentLineLocationSpan, currentLineSpan);
+            var ctr = vc2.AddChild("ZOrder", "ZOrder", currentLineLocationSpan, currentLineSpan);
             index++;
 
             // Used for nested containers
-            var names = new Stack<string>();
-            var containers = new Stack<xx2container>();
+            string[] prevName = new string[0];
+            xx2container[] prevCtr = new xx2container[0];
 
             // Add a leaf for each object data
             while (line.StartsWith(objectData))
@@ -345,14 +335,54 @@ namespace vc2parser
                 // Not nested
                 // ctr.AddLeaf("ZOrder", name, currentLineLocationSpan, currentLineSpan);
 
-                
-                string[] parts = name.Split('.');
+                string[] currName = name.Split('.');
+                xx2container[] currCtr = new xx2container[currName.Length];
 
-                // Unwrap nested until we're out or found a match
-                while (names.Count > 0 && parts.Length > names.Count) names.Pop();
-                
-                
+                // See how many match
+                int i;
+                for (i = 0; i < currName.Length; i++)
+                {
+                    if (i >= prevCtr.Length || prevName[i] != currName[i])
+                        break;
 
+                    currCtr[i] = prevCtr[i];
+                }
+
+                // Add a child up to the parent
+                for (; i < currName.Length - 1; i++)
+                {
+                    var o = (i == 0 ? ctr : currCtr[i - 1]).AddChild(
+                        "Object",
+                        currName[i],
+                        currentLineLocationSpan,
+                        currentLineEmptySpan);
+
+                    currCtr[i] = o;
+                }
+
+                // If the next line starts with me, then I should be a container
+                // otherwise I should be a leaf
+                if(index + 1 < lastLine && lines[index + 1].StartsWith(objectData + name))
+                {
+                    currCtr[i] = (i == 0 ? ctr : currCtr[i - 1]).AddChild("Object", currName[i], currentLineLocationSpan, currentLineSpan);
+                    prevCtr = currCtr;
+                }
+                else
+                {
+                    var c = (i == 0 ? ctr : currCtr[i - 1]);
+
+                    c.AddLeaf("Object", currName[i], currentLineLocationSpan, currentLineSpan);
+
+                    for (int j = 0; j < i; j++)
+                    {
+                        currCtr[j].locationSpan.endRow = index + 1;
+                        currCtr[j].locationSpan.endCol = info[index].length;
+                    }
+
+                    prevCtr = currCtr;
+                }
+
+                prevName = currName;
                 index++;
             }
 
@@ -360,7 +390,7 @@ namespace vc2parser
 
             while (line.Trim() == string.Empty) index++;
 
-            ctr.locationSpan.endRow = index - 1;
+            ctr.locationSpan.endRow = index;
             ctr.locationSpan.endCol = info[index - 1].length;
 
             ctr.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
