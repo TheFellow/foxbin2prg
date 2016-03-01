@@ -142,11 +142,25 @@ namespace xx2lib
 
     public class xx2container : xx2containerbase
     {
+        public int StartRow => locationSpan.startRow;
+        public int StartCol => locationSpan.startCol;
+        public int EndRow => locationSpan.endRow;
+        public int EndCol => locationSpan.endCol;
+
+        public string groupType = null;
+
         public Span headerSpan;
     }
 
     public class xx2leaf : xx2node
     {
+        public int StartRow => locationSpan.startRow;
+        public int StartCol => locationSpan.startCol;
+        public int EndRow => locationSpan.endRow;
+        public int EndCol => locationSpan.endCol;
+
+        public string groupType = null;
+
         public Span span;
     }
 }

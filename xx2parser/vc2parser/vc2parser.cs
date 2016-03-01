@@ -29,6 +29,9 @@ namespace vc2parser
         public Span currentLineSpan => new Span { begin = info[index].begin, end = info[index].end };
         public Span currentLineEmptySpan => new Span { begin = info[index].begin, end = info[index].begin - 1 };
 
+        public bool group = true;
+        public List<xx2container> groupList = new List<xx2container>();
+
         private int index = 0;
 
         #region Constants
@@ -62,6 +65,9 @@ namespace vc2parser
 
             // Parse the source file
             var vc2 = Parse(sourceFile);
+
+            // Group objects into parents if enabled
+            GroupVC2();
 
             // Export the parsed json
             vc2.Serialize(outputFile);
@@ -149,9 +155,11 @@ namespace vc2parser
 
         private void ParseVC2Procedures(xx2container ctr)
         {
-            var meths = ctr.AddChild("Methods", "Method definitions",
-                currentLineLocationSpan,
-                currentLineEmptySpan);
+            var meths = ctr.AddChild("methods", "method implementations",
+                    currentLineLocationSpan,
+                    currentLineEmptySpan);
+
+            groupList.Add(meths);
 
             while(line.StartsWith(procDef) || line.StartsWith(hiddenProc) || line.StartsWith(protectedProc))
             {
@@ -170,9 +178,10 @@ namespace vc2parser
                 index++; // Skip the ENDPROC line
                 while (line.Trim() == string.Empty) index++;
 
-                meths.AddLeaf("Method", procName,
-                    new LocationSpan { startRow = startIndex + 1, startCol = 0, endRow = index, endCol = info[index - 1].length },
-                    new Span { begin = info[startIndex].begin, end = info[index - 1].end });
+                meths.AddLeaf("method implementation", procName,
+                        new LocationSpan { startRow = startIndex + 1, startCol = 0, endRow = index, endCol = info[index - 1].length },
+                        new Span { begin = info[startIndex].begin, end = info[index - 1].end })
+                    .groupType = "object";
             }
 
             // Finish meths.
@@ -181,25 +190,37 @@ namespace vc2parser
             meths.locationSpan.endCol = info[index - 1].length;
         }
 
+        #region ADD OBJECT
+
+        private string AddObjects_GetName()
+        {
+            int begin = line.IndexOf('\'') + 1;
+            int end = line.IndexOf('\'', begin);
+            string name = line.Substring(begin, end - begin);
+            return name;
+        }
+
         private void ParseVC2AddObjects(xx2container ctr)
         {
-            var add = ctr.AddChild("Member objects", "Member objects",
+            var add = ctr.AddChild("objects", ctr.name + " objects",
                 currentLineLocationSpan,
                 currentLineEmptySpan);
 
+            groupList.Add(add);
+
             while (line.StartsWith(addObject))
             {
-                int begin = line.IndexOf('\'') + 1;
-                int end = line.IndexOf('\'', begin);
-                string name = line.Substring(begin, end - begin);
+                string name = AddObjects_GetName();
 
-                var ctrl = add.AddChild("Member", name, currentLineLocationSpan, currentLineSpan);
+                var ctrl = add.AddChild("object", name, currentLineLocationSpan, currentLineSpan);
+                groupList.Add(ctrl);
+
                 index++; // Skip header
 
                 while (!line.StartsWith(endObject))
                 {
                     string propName = line.Substring(0, line.IndexOf('=')).Trim();
-                    ctrl.AddLeaf("Property", propName, currentLineLocationSpan, currentLineSpan);
+                    ctrl.AddLeaf("property", propName, currentLineLocationSpan, currentLineSpan);
                     index++;
                 }
 
@@ -219,22 +240,36 @@ namespace vc2parser
             add.locationSpan.endCol = info[index - 1].length;
         }
 
+        #endregion
+
+        #region Property Sheet Values
+
         private void ParseVC2PropertyValues(xx2container ctr)
         {
-            var props = ctr.AddChild("Properties", "Property values", currentLineLocationSpan, currentLineEmptySpan);
+            var props = ctr.AddChild("properties", "property values", currentLineLocationSpan, currentLineEmptySpan);
 
-            // Check for HIDDEN property list
-            if (line.StartsWith(hiddenPropList))
-            {
-                props.AddLeaf("Hidden", "Property list", currentLineLocationSpan, currentLineSpan);
-                index++;
-            }
+            groupList.Add(props);
 
-            // Check for PROTECTED property list
-            if (line.StartsWith(protectedPropList))
+            if(line.StartsWith(hiddenPropList) || line.StartsWith(protectedPropList))
             {
-                props.AddLeaf("Protected", "Property list", currentLineLocationSpan, currentLineSpan);
-                index++;
+                var scope = props.AddChild("visibility", "visibility", currentLineLocationSpan, currentLineEmptySpan);
+
+                // Check for HIDDEN property list
+                if (line.StartsWith(hiddenPropList))
+                {
+                    scope.AddLeaf("hidden", "hidden property list", currentLineLocationSpan, currentLineSpan);
+                    index++;
+                }
+
+                // Check for PROTECTED property list
+                if (line.StartsWith(protectedPropList))
+                {
+                    scope.AddLeaf("protected", "protected property list", currentLineLocationSpan, currentLineSpan);
+                    index++;
+                }
+
+                scope.locationSpan.endRow = index;
+                scope.locationSpan.endCol = info[index - 1].length;
             }
 
             while(line.Trim() != string.Empty)
@@ -247,19 +282,20 @@ namespace vc2parser
                     while (!line.ToLowerInvariant().Contains(@"</VFPData>".ToLowerInvariant())) index++;
 
                     props.AddLeaf(
-                        "Property",
-                        name,
-                        new LocationSpan { startRow = startIndex + 1, startCol = 0, endRow = index + 1, endCol = info[index - 1].length },
-                        new Span { begin = info[startIndex].begin, end = info[index - 1].end });
+                            "property",
+                            name,
+                            new LocationSpan { startRow = startIndex + 1, startCol = 0, endRow = index + 1, endCol = info[index - 1].length },
+                            new Span { begin = info[startIndex].begin, end = info[index - 1].end })
+                        .groupType = "object";
                 }
                 else
                 {
                     props.AddLeaf(
-                        "Property",
-                        name,
-                        currentLineLocationSpan,
-                        currentLineSpan
-                        );
+                            "property",
+                            name,
+                            currentLineLocationSpan,
+                            currentLineSpan
+                        ).groupType = "object";
                 }
 
                 index++;
@@ -275,9 +311,13 @@ namespace vc2parser
             props.footerSpan = new Span { begin = info[footerStartIndex].begin, end = info[index - 1].end };
         }
 
+        #endregion
+
+        #region PEM Declarations
+
         private void ParseVC2DefinedPropArrayMethod(xx2container ctr)
         {
-            var pems = ctr.AddChild("PEMs", "PEM list", currentLineLocationSpan, currentLineSpan);
+            var pems = ctr.AddChild("PEM", "PEM", currentLineLocationSpan, currentLineSpan);
             index++;
 
             HandlePEM(pems, pemMethod, "Method");
@@ -316,73 +356,34 @@ namespace vc2parser
             }
         }
 
+        #endregion
+
+        #region OBJECT DATA (ZOrder)
+
+        private string ObjectData_GetName()
+        {
+            int start = line.IndexOf('"') + 1;
+            int end = line.IndexOf('"', start);
+            string name = line.Substring(start, end - start);
+            return name;
+        }
+
         private void ParseVC2ObjectData(xx2container vc2)
         {
-            var ctr = vc2.AddChild("ZOrder", "ZOrder", currentLineLocationSpan, currentLineSpan);
+            var ctr = vc2.AddChild("zorder", "object data", currentLineLocationSpan, currentLineSpan);
             index++;
 
-            // Used for nested containers
-            string[] prevName = new string[0];
-            xx2container[] prevCtr = new xx2container[0];
+            groupList.Add(ctr);
 
             // Add a leaf for each object data
             while (line.StartsWith(objectData))
             {
-                int start = line.IndexOf('"') + 1;
-                int end = line.IndexOf('"', start);
-                string name = line.Substring(start, end - start);
+                string name = ObjectData_GetName();
 
                 // Not nested
-                // ctr.AddLeaf("ZOrder", name, currentLineLocationSpan, currentLineSpan);
+                var leaf = ctr.AddLeaf("zorder", name, currentLineLocationSpan, currentLineSpan);
+                leaf.groupType = "object";
 
-                string[] currName = name.Split('.');
-                xx2container[] currCtr = new xx2container[currName.Length];
-
-                // See how many match
-                int i;
-                for (i = 0; i < currName.Length; i++)
-                {
-                    if (i >= prevCtr.Length || prevName[i] != currName[i])
-                        break;
-
-                    currCtr[i] = prevCtr[i];
-                }
-
-                // Add a child up to the parent
-                for (; i < currName.Length - 1; i++)
-                {
-                    var o = (i == 0 ? ctr : currCtr[i - 1]).AddChild(
-                        "Object",
-                        currName[i],
-                        currentLineLocationSpan,
-                        currentLineEmptySpan);
-
-                    currCtr[i] = o;
-                }
-
-                // If the next line starts with me, then I should be a container
-                // otherwise I should be a leaf
-                if(index + 1 < lastLine && lines[index + 1].StartsWith(objectData + name))
-                {
-                    currCtr[i] = (i == 0 ? ctr : currCtr[i - 1]).AddChild("Object", currName[i], currentLineLocationSpan, currentLineSpan);
-                    prevCtr = currCtr;
-                }
-                else
-                {
-                    var c = (i == 0 ? ctr : currCtr[i - 1]);
-
-                    c.AddLeaf("Object", currName[i], currentLineLocationSpan, currentLineSpan);
-
-                    for (int j = 0; j < i; j++)
-                    {
-                        currCtr[j].locationSpan.endRow = index + 1;
-                        currCtr[j].locationSpan.endCol = info[index].length;
-                    }
-
-                    prevCtr = currCtr;
-                }
-
-                prevName = currName;
                 index++;
             }
 
@@ -395,6 +396,8 @@ namespace vc2parser
 
             ctr.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
         }
+
+        #endregion
 
         private void ParseVC2Header(xx2file vc2)
         {
@@ -449,5 +452,143 @@ namespace vc2parser
                 index++;
             }
         }
+
+        #region Grouping by parent
+
+        private void GroupVC2()
+        {
+            if (!group) return;
+
+            foreach(var context in groupList)
+            {
+                // Get a list of every node name that should be a container
+                var containers = TreeInfo.GroupTree(context.children.Select(n => n.name).ToArray());
+                foreach (string parentName in containers)
+                {
+                    int beg = -1, end = -1;
+
+                    for (int i = 0; i < context.children.Count; i++)
+                        if (context.children[i].name.StartsWith(parentName + '.'))
+                        {
+                            if (beg < 0) beg = i;
+                            end = i;
+                        }
+
+                    if (beg < 0 || end < 0)
+                        continue;
+
+                    // Extract and replace the range with a container
+                    var leaves = context.children.GetRange(beg, end - beg + 1);         // Save copy of "leaves"
+                    if (end > beg) context.children.RemoveRange(beg + 1, end - beg);    // Remove excess "leaves"
+
+                    int last = end - beg;
+                    Span newSpan;
+
+                    if (leaves[0] is xx2leaf)
+                        newSpan = ((xx2leaf)leaves[0]).span;
+                    else
+                        newSpan = ((xx2container)leaves[0]).headerSpan;
+
+                    newSpan.end = newSpan.begin - 1;
+
+                    string containerName = GetParentName(leaves[0].name);
+
+                    // Should we change the type during grouping?
+                    string groupType;
+                    if (leaves[0] is xx2leaf)
+                        groupType = ((xx2leaf)leaves[0]).groupType ?? leaves[0].type;
+                    else
+                        groupType = ((xx2container)leaves[0]).groupType ?? leaves[0].type;
+
+                    // Fix the leaf names
+                    foreach (var item in leaves)
+                        item.name = GetChildName(item.name);
+
+                    // Replace with new container
+                    context.children[beg] = new xx2container
+                    {
+                        type = groupType,
+                        name = containerName,
+                        locationSpan = new LocationSpan
+                        {
+                            startRow = leaves[0].locationSpan.startRow,
+                            startCol = leaves[0].locationSpan.startCol,
+                            endRow = leaves[last].locationSpan.endRow,
+                            endCol = leaves[last].locationSpan.endCol
+                        },
+                        headerSpan = newSpan,
+                        children = leaves
+                    };
+                }
+            }
+        }
+
+        private string GetParentName(string path)
+        {
+            int index = path.LastIndexOf('.');
+            if (index < 0)
+                return path;
+
+            return path.Substring(0, index);
+        }
+
+        private string GetChildName(string path)
+        {
+            int index = path.LastIndexOf('.');
+            if (index < 0)
+                return path;
+            return path.Substring(index + 1);
+        }
+
+        #endregion
     }
 }
+
+/*
+string[] currName = context.children[childIndex].name.Split('.');
+xx2container[] currCtr = new xx2container[currName.Length];
+
+// See how many match
+int i;
+for (i = 0; i < currName.Length; i++)
+{
+    if (i >= prevCtr.Length || prevName[i] != currName[i])
+        break;
+
+    currCtr[i] = prevCtr[i];
+}
+
+// Add a child up to the parent
+for (; i < currName.Length - 1; i++)
+{
+    var o = (i == 0 ? ctr : currCtr[i - 1]).AddChild(
+        "ZOrder",
+        currName[i],
+        currentLineLocationSpan,
+        currentLineEmptySpan);
+
+    currCtr[i] = o;
+}
+
+// If the next line starts with me, then I should be a container
+// otherwise I should be a leaf
+if (index + 1 < lastLine && lines[index + 1].StartsWith(objectData + name))
+{
+    currCtr[i] = (i == 0 ? ctr : currCtr[i - 1]).AddChild("ZOrder", currName[i], currentLineLocationSpan, currentLineSpan);
+}
+else
+{
+    var c = (i == 0 ? ctr : currCtr[i - 1]);
+
+    c.AddLeaf("ZOrder", (i == 0 ? "" : c.name + ".") + currName[i], currentLineLocationSpan, currentLineSpan);
+
+    for (int j = 0; j < i; j++)
+    {
+        currCtr[j].locationSpan.endRow = index + 1;
+        currCtr[j].locationSpan.endCol = info[index].length;
+    }
+}
+
+prevCtr = currCtr;
+prevName = currName;
+*/

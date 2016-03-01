@@ -49,6 +49,7 @@
     <Compile Include="MergeProxy.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Span.cs" />
+    <Compile Include="TreeInfo.cs" />
     <Compile Include="xx2node.cs" />
     <Compile Include="xx2parser.cs" />
   </ItemGroup>
