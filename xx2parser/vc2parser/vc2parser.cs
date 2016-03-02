@@ -341,7 +341,7 @@ namespace vc2parser
         {
             if (line.StartsWith(startsWith))
             {
-                var def = pems.AddChild("PEM declaration", typeNamePlural, currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+                var def = pems.AddChild("PEM declaration", typeNamePlural, currentLineLocationSpan, currentLineEmptySpan);
 
                 while (line.StartsWith(startsWith))
                 {
