@@ -320,9 +320,9 @@ namespace vc2parser
             var pems = ctr.AddChild("PEM", "PEM", currentLineLocationSpan, currentLineSpan);
             index++;
 
-            HandlePEM(pems, pemMethod, "Method");
-            HandlePEM(pems, pemProperty, "Property");
-            HandlePEM(pems, pemArray, "Array");
+            HandlePEM(pems, pemMethod, "Method", "Methods");
+            HandlePEM(pems, pemProperty, "Property", "Properties");
+            HandlePEM(pems, pemArray, "Array", "Arrays");
 
             // footer
             int startIndex = index;
@@ -337,11 +337,11 @@ namespace vc2parser
 
         }
 
-        private void HandlePEM(xx2container pems, string startsWith, string typeName)
+        private void HandlePEM(xx2container pems, string startsWith, string typeName, string typeNamePlural)
         {
             if (line.StartsWith(startsWith))
             {
-                var def = pems.AddChild("PEM declaration", typeName, currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
+                var def = pems.AddChild("PEM declaration", typeNamePlural, currentLineLocationSpan, new Span { begin = info[index].begin, end = info[index].end });
 
                 while (line.StartsWith(startsWith))
                 {
@@ -370,7 +370,7 @@ namespace vc2parser
 
         private void ParseVC2ObjectData(xx2container vc2)
         {
-            var ctr = vc2.AddChild("zorder", "object data", currentLineLocationSpan, currentLineSpan);
+            var ctr = vc2.AddChild("zorder", "object zorder data", currentLineLocationSpan, currentLineSpan);
             index++;
 
             groupList.Add(ctr);
