@@ -24,7 +24,7 @@ namespace vc2parser
 
         public int length => lines.Length;
         public int lastLine => lines.Length - 1;
-        public string line => lines[index];
+        public string line => length == 0 ? string.Empty : lines[index];
         public LocationSpan currentLineLocationSpan => new LocationSpan { startRow = index + 1, startCol = 0, endRow = index + 1, endCol = info[index].length };
         public Span currentLineSpan => new Span { begin = info[index].begin, end = info[index].end };
         public Span currentLineEmptySpan => new Span { begin = info[index].begin, end = info[index].begin - 1 };
@@ -88,26 +88,29 @@ namespace vc2parser
                     startRow = 1,
                     startCol = 0,
                     endRow = length,
-                    endCol = info[lastLine].length
+                    endCol = lastLine < 0 ? 0 : info[lastLine].length
                 }
             };
 
-            // Determine file type and parse accordingly
-            ParseVC2Header(vc2);
+            if(lastLine >= 0)
+            {
+                // Determine file type and parse accordingly
+                ParseVC2Header(vc2);
 
-            if (line.StartsWith(externalClass))
-            {
-                ParseVC2ClassLib(vc2);
-            }
-            else
-            {
-                while(index <= lastLine && line.StartsWith(defineClass))
+                if (line.StartsWith(externalClass))
                 {
-                    ParseVC2Class(vc2);
+                    ParseVC2ClassLib(vc2);
                 }
-            }
+                else
+                {
+                    while (index <= lastLine && line.StartsWith(defineClass))
+                    {
+                        ParseVC2Class(vc2);
+                    }
+                }
 
-            ParseVC2Footer(vc2);
+                ParseVC2Footer(vc2);
+            }
 
             return vc2;
         }
