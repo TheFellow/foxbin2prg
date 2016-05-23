@@ -38,6 +38,7 @@ namespace vc2parser
 
         public const string defineClass =           @"DEFINE CLASS ";
         public const string endDefineClass =        @"ENDDEFINE";
+        public const string include =               @"	#INCLUDE ";
         public const string externalClassHeader =   @"*-- EXTERNAL_CLASS ";
         public const string externalClass =         @"*< EXTERNAL_CLASS: ";
         public const string objectDataHeader =      @"	*-- OBJECTDATA ";
@@ -128,6 +129,9 @@ namespace vc2parser
             // set container header
             ctr.headerSpan = new Span { begin = info[headerStartIndex].begin, end = info[index - 1].end };
 
+            // Check for an include of a header file
+            if (line.StartsWith(include)) ParseVC2Include(ctr);
+
             // Check for Object Data
             if (line.StartsWith(objectDataHeader)) ParseVC2ObjectData(ctr);
 
@@ -154,6 +158,16 @@ namespace vc2parser
                 ctr.locationSpan.endCol = info[index - 1].length;
                 ctr.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
             }
+        }
+
+        private void ParseVC2Include(xx2container ctr)
+        {
+            var includes = ctr.AddLeaf("include", line.Substring(include.Length),
+                currentLineLocationSpan,
+                currentLineSpan);
+
+            index++; // Skip this line
+            while (line.Trim() == string.Empty) index++;
         }
 
         private void ParseVC2Procedures(xx2container ctr)
@@ -323,9 +337,9 @@ namespace vc2parser
             var pems = ctr.AddChild("PEM", "PEM", currentLineLocationSpan, currentLineSpan);
             index++;
 
-            HandlePEM(pems, pemMethod, "Method", "Methods");
-            HandlePEM(pems, pemProperty, "Property", "Properties");
-            HandlePEM(pems, pemArray, "Array", "Arrays");
+            HandlePEM(pems, pemMethod, "method", "Methods");
+            HandlePEM(pems, pemProperty, "property", "Properties");
+            HandlePEM(pems, pemArray, "array", "Arrays");
 
             // footer
             int startIndex = index;
