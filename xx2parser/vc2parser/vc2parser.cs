@@ -45,7 +45,8 @@ namespace vc2parser
         public const string objectData =            @"	*< OBJECTDATA: ObjPath=""";
         public const string addObject =             @"	ADD OBJECT ";
         public const string endObject =             @"		*< END OBJECT: ";
-        public const string definedPropArrayMethod =@"	*<DefinedPropArrayMethod>";
+        public const string definePropArrayMethod   = @"	*<DefinedPropArrayMethod>";
+        public const string undefinePropArrayMethod = @"	*</DefinedPropArrayMethod>";
         public const string pemMethod =             @"		*m: ";
         public const string pemProperty =           @"		*p: ";
         public const string pemArray =              @"		*a: ";
@@ -136,7 +137,7 @@ namespace vc2parser
             if (line.StartsWith(objectDataHeader)) ParseVC2ObjectData(ctr);
 
             // Check for Defined Prop Array Method
-            if (line.StartsWith(definedPropArrayMethod)) ParseVC2DefinedPropArrayMethod(ctr);
+            if (line.StartsWith(definePropArrayMethod)) ParseVC2DefinedPropArrayMethod(ctr);
 
             // Check for Hidden/Protected/property sheet value
             if ((line.StartsWith(hiddenPropList) || line.StartsWith(protectedPropList) || line[line.IndexOf(' ') + 1] == '=')
@@ -337,9 +338,16 @@ namespace vc2parser
             var pems = ctr.AddChild("PEM", "PEM", currentLineLocationSpan, currentLineSpan);
             index++;
 
-            HandlePEM(pems, pemMethod, "method", "Methods");
-            HandlePEM(pems, pemProperty, "property", "Properties");
-            HandlePEM(pems, pemArray, "array", "Arrays");
+            // When there are arrays and _memberdata, the _memberdata is added last
+            // as a property, and comes after the array definitions. So, we'll just repeat this until
+            // we find a closing item
+            
+            while (!line.StartsWith(undefinePropArrayMethod))
+            {
+                HandlePEM(pems, pemMethod, "method", "Methods");
+                HandlePEM(pems, pemProperty, "property", "Properties");
+                HandlePEM(pems, pemArray, "array", "Arrays");
+            }
 
             // footer
             int startIndex = index;
