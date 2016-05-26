@@ -99,13 +99,13 @@ namespace vc2parser
                 // Determine file type and parse accordingly
                 ParseVC2Header(vc2);
 
-                if (line.StartsWith(externalClass))
+                if (lineStartsWith(externalClass))
                 {
                     ParseVC2ClassLib(vc2);
                 }
                 else
                 {
-                    while (index <= lastLine && line.StartsWith(defineClass))
+                    while (index <= lastLine && lineStartsWith(defineClass))
                     {
                         ParseVC2Class(vc2);
                     }
@@ -131,24 +131,24 @@ namespace vc2parser
             ctr.headerSpan = new Span { begin = info[headerStartIndex].begin, end = info[index - 1].end };
 
             // Check for an include of a header file
-            if (line.StartsWith(include)) ParseVC2Include(ctr);
+            if (lineStartsWith(include)) ParseVC2Include(ctr);
 
             // Check for Object Data
-            if (line.StartsWith(objectDataHeader)) ParseVC2ObjectData(ctr);
+            if (lineStartsWith(objectDataHeader)) ParseVC2ObjectData(ctr);
 
             // Check for Defined Prop Array Method
-            if (line.StartsWith(definePropArrayMethod)) ParseVC2DefinedPropArrayMethod(ctr);
+            if (lineStartsWith(definePropArrayMethod)) ParseVC2DefinedPropArrayMethod(ctr);
 
             // Check for Hidden/Protected/property sheet value
-            if ((line.StartsWith(hiddenPropList) || line.StartsWith(protectedPropList) || line[line.IndexOf(' ') + 1] == '=')
-                    && !(line.StartsWith(hiddenProc) || line.StartsWith(protectedProc)))
+            if ((lineStartsWith(hiddenPropList) || lineStartsWith(protectedPropList) || line[line.IndexOf(' ') + 1] == '=')
+                    && !(lineStartsWith(hiddenProc) || lineStartsWith(protectedProc)))
                 ParseVC2PropertyValues(ctr);
 
             // Check for Add Object(s)
-            if (line.StartsWith(addObject)) ParseVC2AddObjects(ctr);
+            if (lineStartsWith(addObject)) ParseVC2AddObjects(ctr);
 
             // Check for procedures
-            if (line.StartsWith(procDef) || line.StartsWith(hiddenProc) || line.StartsWith(protectedProc)) ParseVC2Procedures(ctr);
+            if (lineStartsWith(procDef) || lineStartsWith(hiddenProc) || lineStartsWith(protectedProc)) ParseVC2Procedures(ctr);
 
             if (line == endDefineClass)
             {
@@ -160,6 +160,8 @@ namespace vc2parser
                 ctr.footerSpan = new Span { begin = info[startIndex].begin, end = info[index - 1].end };
             }
         }
+
+        private bool lineStartsWith(string value) => line.Trim().StartsWith(value.Trim());
 
         private void ParseVC2Include(xx2container ctr)
         {
@@ -179,19 +181,19 @@ namespace vc2parser
 
             groupList.Add(meths);
 
-            while(line.StartsWith(procDef) || line.StartsWith(hiddenProc) || line.StartsWith(protectedProc))
+            while(lineStartsWith(procDef) || lineStartsWith(hiddenProc) || lineStartsWith(protectedProc))
             {
                 // Determine the procedure name
                 string procName;
 
-                if (line.StartsWith(procDef))
+                if (lineStartsWith(procDef))
                     procName = line.Trim().Split()[1];
                 else
                     procName = line.Trim().Split()[2];
 
                 int startIndex = index;
 
-                while (!line.StartsWith(endProc)) index++;
+                while (!lineStartsWith(endProc)) index++;
 
                 index++; // Skip the ENDPROC line
                 while (line.Trim() == string.Empty) index++;
@@ -226,7 +228,7 @@ namespace vc2parser
 
             groupList.Add(add);
 
-            while (line.StartsWith(addObject))
+            while (lineStartsWith(addObject))
             {
                 string name = AddObjects_GetName();
 
@@ -235,7 +237,7 @@ namespace vc2parser
 
                 index++; // Skip header
 
-                while (!line.StartsWith(endObject))
+                while (!lineStartsWith(endObject))
                 {
                     string propName = line.Substring(0, line.IndexOf('=')).Trim();
                     ctrl.AddLeaf("property", propName, currentLineLocationSpan, currentLineSpan);
@@ -268,19 +270,19 @@ namespace vc2parser
 
             groupList.Add(props);
 
-            if(line.StartsWith(hiddenPropList) || line.StartsWith(protectedPropList))
+            if(lineStartsWith(hiddenPropList) || lineStartsWith(protectedPropList))
             {
                 var scope = props.AddChild("visibility", "visibility", currentLineLocationSpan, currentLineEmptySpan);
 
                 // Check for HIDDEN property list
-                if (line.StartsWith(hiddenPropList))
+                if (lineStartsWith(hiddenPropList))
                 {
                     scope.AddLeaf("hidden", "hidden property list", currentLineLocationSpan, currentLineSpan);
                     index++;
                 }
 
                 // Check for PROTECTED property list
-                if (line.StartsWith(protectedPropList))
+                if (lineStartsWith(protectedPropList))
                 {
                     scope.AddLeaf("protected", "protected property list", currentLineLocationSpan, currentLineSpan);
                     index++;
@@ -342,7 +344,7 @@ namespace vc2parser
             // as a property, and comes after the array definitions. So, we'll just repeat this until
             // we find a closing item
             
-            while (!line.StartsWith(undefinePropArrayMethod))
+            while (!lineStartsWith(undefinePropArrayMethod))
             {
                 HandlePEM(pems, pemMethod, "method", "Methods");
                 HandlePEM(pems, pemProperty, "property", "Properties");
@@ -364,11 +366,11 @@ namespace vc2parser
 
         private void HandlePEM(xx2container pems, string startsWith, string typeName, string typeNamePlural)
         {
-            if (line.StartsWith(startsWith))
+            if (lineStartsWith(startsWith))
             {
                 var def = pems.AddChild("PEM declaration", typeNamePlural, currentLineLocationSpan, currentLineEmptySpan);
 
-                while (line.StartsWith(startsWith))
+                while (lineStartsWith(startsWith))
                 {
                     string name = line.Trim().Split()[1];
 
@@ -401,7 +403,7 @@ namespace vc2parser
             groupList.Add(ctr);
 
             // Add a leaf for each object data
-            while (line.StartsWith(objectData))
+            while (lineStartsWith(objectData))
             {
                 string name = ObjectData_GetName();
 
@@ -426,7 +428,7 @@ namespace vc2parser
 
         private void ParseVC2Header(xx2file vc2)
         {
-            while (line.StartsWith("*") && !line.StartsWith(externalClass)) index++;
+            while (line.StartsWith("*") && !lineStartsWith(externalClass)) index++;
 
             vc2.AddLeaf("file header", "file header",
                 new LocationSpan { startRow = 1, startCol = 0, endRow = index, endCol = info[index - 1].length },
@@ -444,7 +446,7 @@ namespace vc2parser
 
         private void ParseVC2ClassLib(xx2file vc2)
         {
-            while (line.StartsWith(externalClass))
+            while (lineStartsWith(externalClass))
             {
                 int start = line.IndexOf('"') + 1;
                 int end = line.IndexOf('"', start);
