@@ -84,6 +84,7 @@ namespace xx2lib
             
 
             File.WriteAllText(outputFile, sw.ToString());
+            //File.WriteAllText($@"c:\temp\{Path.GetFileName(outputFile)}.txt", sw.ToString());
         }
 
         private void SerializeChildren(List<xx2node> children, JsonTextWriter json)

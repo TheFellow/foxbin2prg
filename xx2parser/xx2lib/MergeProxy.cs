@@ -9,7 +9,8 @@ namespace xx2lib
 {
     public class MergeProxy
     {
-        private string debugFile = @"c:\temp\debug.txt";
+        private readonly string debugFile = @"c:\temp\debug.txt";
+        private bool createDebugFile = false;
         private string flagFile;
         Func<xx2parser> parser;
 
@@ -27,18 +28,23 @@ namespace xx2lib
             // Stay in a loop and delegate to events
             string line;
 
-            //File.WriteAllText(debugFile, "Enter Execute()");
+            if (createDebugFile) File.WriteAllText(debugFile, "Enter Execute()");
 
             while((line = Console.In.ReadLine()) != "end" && !string.IsNullOrEmpty(line))
             {
-                //File.AppendAllText(debugFile, "\nBegin Loop");
+                if (createDebugFile) File.AppendAllText(debugFile, "\nBegin Loop");
 
                 string sourceFile = line;
+                string encoding = Console.In.ReadLine();
                 string outputFile = Console.In.ReadLine();
                 bool success = true;
 
-                //File.AppendAllText(debugFile, " source: " + sourceFile);
-                //File.AppendAllText(debugFile, " target: " + outputFile);
+                // Sanitize the ridiculous extra slashes in the file path
+                sourceFile = sourceFile.Replace(@"\\", @"\");
+                outputFile = outputFile.Replace(@"\\", @"\");
+
+                if (createDebugFile) File.AppendAllText(debugFile, " source: " + sourceFile);
+                if (createDebugFile) File.AppendAllText(debugFile, " target: " + outputFile);
 
                 // Invoke the delegate
                 success = parser().Execute(sourceFile, outputFile);
@@ -46,7 +52,7 @@ namespace xx2lib
                 if (success)
                     success = File.Exists(outputFile);
 
-                //File.AppendAllText(debugFile, $"\n success = {success}");
+                if (createDebugFile) File.AppendAllText(debugFile, $"\n success = {success}");
 
                 // Respond to the merge tool
                 if (success)
@@ -59,7 +65,7 @@ namespace xx2lib
                     break;
                 }
 
-                //File.AppendAllText(debugFile, "\nEnd Loop");
+                if (createDebugFile) File.AppendAllText(debugFile, "\nEnd Loop");
             }
         }
     }

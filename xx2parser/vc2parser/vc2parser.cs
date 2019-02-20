@@ -29,7 +29,7 @@ namespace vc2parser
         public Span currentLineSpan => new Span { begin = info[index].begin, end = info[index].end };
         public Span currentLineEmptySpan => new Span { begin = info[index].begin, end = info[index].begin - 1 };
 
-        public bool group = true;
+        public bool group = false;
         public List<xx2container> groupList = new List<xx2container>();
 
         private int index = 0;
@@ -430,6 +430,9 @@ namespace vc2parser
         {
             while (line.StartsWith("*") && !lineStartsWith(externalClass)) index++;
 
+            if (index == 0)
+                return;
+
             vc2.AddLeaf("file header", "file header",
                 new LocationSpan { startRow = 1, startCol = 0, endRow = index, endCol = info[index - 1].length },
                 new Span { begin = 0, end = info[index - 1].end }
@@ -460,7 +463,8 @@ namespace vc2parser
 
         private void LoadFile(string sourceFile)
         {
-            lines = File.ReadAllLines(sourceFile);
+            lines = File.ReadAllLines(sourceFile, Encoding.GetEncoding(1252));
+            //File.WriteAllLines($@"c:\temp\{Path.GetFileName(sourceFile)}.txt", lines);
             info = new lineinfo[lines.Length];
 
             int index = 0, offset = 0;

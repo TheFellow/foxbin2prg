@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -22,10 +23,20 @@ namespace vc2parser
             //parser().Execute(args[1], @"c:\temp\outfile.json");
             //return;
 
-            var pxy = new MergeProxy(args[1], parser);
+            try
+            {
+                var pxy = new MergeProxy(args[1], parser);
 
-            // Start the proxy
-            pxy.Execute();
+                // Start the proxy
+                pxy.Execute();
+            }
+            catch (Exception e)
+            {
+                File.WriteAllText(@"C:\temp\vc2parser.dump.txt", e.ToString());
+                throw;
+            }
+
+            
         }
     }
 }
